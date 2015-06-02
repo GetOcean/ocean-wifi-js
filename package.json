@@ -1,0 +1,19 @@
+{
+    "name": "BlueOcean WiFi",
+    "version": "0.1",
+    "private": true,
+    "author": "David Petrie",
+    "maintainers": [
+        {
+            "name": "David Petrie",
+            "email": "davidp@icracked.com"
+        }
+    ],
+    "dependencies": {
+        "ws": "*",
+        "es6-promise": "*",
+        "node-gyp": "*",
+        "debug": "*",
+        "util": "*"
+    }
+}
