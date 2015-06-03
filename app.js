@@ -1,5 +1,5 @@
 'use strict';
-var wifi = require('./wifi/index.js');
+var wifi = require('./wifi/index.js').wifi;
 
 var config = {
     iface: 'wlan0',
