@@ -1,5 +1,5 @@
 'use strict';
-var wifi = require('./wifi/index.js').wifi;
+var wifi = require('../build/wifi.min.js').wifi;
 
 var config = {
     interfaces: ['wlan0'],
