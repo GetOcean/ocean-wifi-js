@@ -2,26 +2,24 @@
 var Wifi = require('wifi');
 var fs = require('fs');
 
-var SSID = 'woteva';
-
-var wireless = new Wireless({
+var config = {
     iface: 'wlan0',
     updateFrequency: 10,
     connectionSpyFrequency: 2,
     vanishThreshold: 2
-});
+};
 
-wireless.enable(function(err) {
-    wireless.start();
-
-    setInterval(function() {
-        var list = wireless.list();
-        for (var k in list) {
-            var n = list[k];
-            debugNetworkInfo("list", n);
-        }
-    }, 2000);
-});
+wifi.start(config).then(        
+    function(success) {
+        setInterval(function() {
+            var list = wireless.list();
+            for (var k in list) {
+                var n = list[k];
+                debugNetworkInfo("list", n);
+            }
+        }, 2000);
+    }
+);
 
 
 function debugNetworkInfo(event, network) {
