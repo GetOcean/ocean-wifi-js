@@ -1,20 +1,25 @@
 {
-    "name": "blueocean-wifi-js",
-    "version": "0.1.1",
-    "private": true,
-    "author": "David Petrie",
-    "maintainers": [
-        {
-            "name": "David Petrie",
-            "email": "davidp@icracked.com"
-        }
-    ],
-    "dependencies": {
-        "ws": "*",
-        "es6-promise": "*",
-        "node-gyp": "*",
-        "debug": "*",
-        "util": "*",
-        "underscore": "*"
+  "name": "blueocean-wifi-js",
+  "version": "0.1.1",
+  "private": true,
+  "author": "David Petrie",
+  "maintainers": [
+    {
+      "name": "David Petrie",
+      "email": "davidp@icracked.com"
     }
+  ],
+  "dependencies": {
+    "debug": "*",
+    "es6-promise": "*",
+    "node-gyp": "*",
+    "underscore": "*",
+    "util": "*",
+    "ws": "*"
+  }
+  "devDependencies": {
+    "grunt": "~0.4.1",
+    "grunt-contrib-concat": "^0.5.0",
+    "grunt-contrib-uglify": "^0.7.0"
+  }
 }
