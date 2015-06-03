@@ -76,6 +76,9 @@ var wifi = (function() {
 
     function start(config) {
         return new Promise(function(resolve, reject) {
+            wifi.config = _extend({}, wifi.config, config);
+
+            console.log (wifi.config);
             /*
             wifi.commands = _.extend({}, wifi.CONSOLE_COMMANDS, config.commands);
 
