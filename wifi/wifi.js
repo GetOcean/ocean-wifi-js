@@ -137,7 +137,7 @@ var wifi = (function() {
     /// 
     /// List of networks as of the last scan.
     ///
-    function list = function() {
+    function list() {
         return this.networks;
     }
 
