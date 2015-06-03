@@ -13,6 +13,8 @@
 var wifi = (function() {
 
     var wifi = {},
+        killing = true,
+        
         // Scanner timer reference
         scanTimer = null,
 
@@ -22,32 +24,20 @@ var wifi = (function() {
         // True if connected to a network
         connected = true,
 
-        // @iface: Interface to listen on.
+        // @interfaces: A list of interface to listen on.
+        // @interfaceIndex: starting interface index
         // @updateFrequency: how often to poll the network list.
         // @connectionTestFrequency: how often to check if we are connected.
         // @vanishThreshold: scans to determine if an AP is not available.
-        config = {
-            iface : "wlan0",
+        defaultOptions = {
+            interfaces : ["wlan0"],
+            interfaceIndex : 0,
             updateFrequency : 10,
             connectionTestFrequency : 2,
             vanishThreshold : 2
         },
 
-        CONSOLE_COMMANDS = {
-            scan: 'sudo iwlist {interface} scan',
-            stat: 'sudo iwconfig {interface}',
-            disable: 'sudo ifconfig {interface} down',
-            enable: 'sudo ifconfig {interface} up',
-            interfaces: 'sudo iwconfig',
-            dhcp: 'sudo dhcpcd {interface}',
-            dhcp_disable: 'sudo dhcpcd {interface} -k',
-            leave: 'sudo iwconfig {interface} essid ""',
-
-            metric: 'sudo ifconfig {interface} metric {metric}',
-            connect_wep: 'sudo iwconfig {interface} essid "{essid}" key {password}',
-            connect_wpa: 'sudo wpa_passphrase "{essid}" {password} > wpa-temp.conf && sudo wpa_supplicant -D wext -i {interface} -c wpa-temp.conf && rm wpa-temp.conf',
-            connect_open: 'sudo iwconfig {interface} essid "{essid}"',
-        },
+        config = {},
 
         commands = {},
 
@@ -55,35 +45,26 @@ var wifi = (function() {
         networks = {};
 
 
-    function start(config) {
-        return new Promise(function(resolve, reject) {
-            wifi.config = _extend({}, wifi.config, config);
+    function start(opts) {
+        var promise = new Promise(function(resolve, reject) {
+            options = _.extend({}, opts, defaultOptions);
+            console.log (options);
 
-            console.log (wifi.config);
-            /*
-            wifi.commands = _.extend({}, wifi.CONSOLE_COMMANDS, config.commands);
+            _executeScan();
+            _executeTrackConnection();
 
-            // Translates each individual command
-            for (var command in wifi.commands) {
-                wifi.commands[command] = wifi._translate(wifi.commands[command], {
-                    'interface': wifi.config.iface,
-                });
-            }*/
-
-            // Start network scanner
-            wifi._executeScan();
-            this.scanTimer = setInterval(function() {
-                wifi._executeScan();
-            }, wifi.config.updateFrequency * 1000);
-
-            // Start connection loop.
-            wifi._executeTrackConnection();
-            wifi.connectTimer = setInterval(function() {
-                wifi._executeTrackConnection();
-            }, wifi.config.connectionTestFrequency * 1000);
+            scanTimer = setInterval(function() {
+                _executeScan();
+            }, options.updateFrequency * 1000);
+                
+            connectTimer = setInterval(function() {
+                _executeTrackConnection();
+            }, options.connectionTestFrequency * 1000);
 
             resolve();
         });
+
+        return promise;
     }
 
 
@@ -92,9 +73,9 @@ var wifi = (function() {
     ///
     function stop() {
         return new Promise(function(resolve, reject) {
-            this.killing = true;
-            clearInterval(this.scanTimer);
-            clearInterval(this.connectTimer);
+            killing = true;
+            clearInterval(scanTimer);
+            clearInterval(connectTimer);
             wifi.onStop();
             resolve();
         });
@@ -119,131 +100,7 @@ var wifi = (function() {
     /// List of networks as of the last scan.
     ///
     function list() {
-        return this.networks;
-    }
-
-
-    function execDHCP(callback) {
-        var command = wifi.commands.dhcp;
-        var args = {
-            'interface': wifi.config.interface
-        };
-        command = command.format(args);
-        wifi.onCommand(command);
-        exec(command, callback);
-    }
-
-
-    function execDHCPDisable(callback) {
-        var command = wifi.commands.dhcp_disable;
-        var args = {
-            'interface': wifi.config.interface
-        };
-        command = command.format(args);
-        wifi.onCommand(command);
-        exec(command, callback);
-    }
-
-
-    function execEnable(callback) {
-        var command = wifi.commands.enable;
-        var args = {
-            'interface': wifi.config.interface
-        };
-        command = command.format(args);
-        wifi.onCommand(command);
-        exec(command, callback);
-    }
-
-
-    function execDisable(callback) {
-        var command = wifi.commands.disable;
-        var args = {
-            'interface': wifi.config.interface
-        };
-        command.format(args);
-        wifi.onCommand(command);
-        exec(command, callback);
-    }
-
-
-    /// 
-    /// Connect to a WEP encrypted network
-    ///
-    function execConnectWEP(network, password, callback) {
-        var command = wifi.commands.connect_wep;
-        var args = {
-            'interface': wifi.config.interface,
-            'essid': network.essid,
-            'password': password
-        };
-        command.format(args);
-        wifi.onCommand(command);
-        exec(command, callback);
-    }
-
-
-    ///
-    /// Connect to a WPA2 or WPA enabled network, while preserving the network id and password.
-    ///
-    function execConnectWPA(network, password, callback) {
-        var command = wifi.commands.connect_wpa;
-        var args = {
-            'interface': wifi.config.interface,
-            'essid': network.essid,
-            'password': password
-        };
-        command.format(args);
-        wifi.onCommand(command);
-        exec(command, callback);
-    }
-
-
-    ///
-    /// Connect to the given network password.
-    ///
-    function execConnectOpen(network, callback) {
-        var command = wifi.commands.connect_open;
-        var args = {
-            'interface': wifi.config.interface,
-            'essid': network.essid
-        };
-        command.format(args);
-        wifi.onCommand(command);
-        exec(command, callback);
-    }
-
-
-    function execLeave(network, callback) {
-        var command = wifi.commands.leave;
-        var args = {
-            'interface': wifi.config.interface
-        };
-        command.format(args);
-        wifi.onCommand(command);
-        exec(command, callback);
-    }
-
-
-    function execScan(callback) {
-        var command = wifi.commands.scan;
-        var args = {
-            'interface': wifi.config.interface
-        };
-        command = command.format(args);
-        wifi.onCommand(command);
-        exec(command, callback);       
-    }
-
-
-    function execTrackConnection(callback) {
-        var command = wifi.commands.stat;
-        var args = {
-            'interface': wifi.config.interface
-        };
-        command = command.format(args);
-        wifi.onCommand(command);
-        exec(command, callback);       
+        return networks;
     }
 
 
@@ -252,7 +109,7 @@ var wifi = (function() {
     ///
     function dhcp () {
         return new Promise(function(resolve, reject) {
-            wifi.execDHCP(function(err, stdout, stderr) {
+            execDHCP(function(err, stdout, stderr) {
                 if (err) {
                     wifi.error("There was an unknown error enabling dhcp" + err);
                     reject(err);
@@ -270,7 +127,7 @@ var wifi = (function() {
                     });
 
                     if (ip_address) {
-                        self.onDHCP(ip_address);
+                        wifi.onDHCP(ip_address);
                         resolve(ip_address);
                     } else {
                         wifi.error("Couldn't get an IP Address from DHCP");
@@ -287,7 +144,7 @@ var wifi = (function() {
     ///
     function dhcpStop() {
         return new Promise(function(resolve, reject) {
-            wifi.execDHCPDisable(function(err, stdout, stderr) {
+            execDHCPDisable(function(err, stdout, stderr) {
                 if (err) {
                     wifi.error("There was an unknown error disabling dhcp" + err);
                     reject();
@@ -304,10 +161,10 @@ var wifi = (function() {
     ///
     function enable() {
         return new Promise(function(resolve, reject) {
-            wifi.execEnable(function(err, stdout, stderr) {
+            execEnable(function(err, stdout, stderr) {
                 if (err) {
                     if (err.message.indexOf("No such device")) {
-                        wifi.error("The interface " + self.iface + " does not exist.");
+                        wifi.error("The interface " + options.iface + " does not exist.");
                         reject(err);
                     } else {
                         wifi.error("There was an unknown error enabling the interface" + err);
@@ -329,7 +186,7 @@ var wifi = (function() {
     ///
     function disable() {
         return new Promise(function(resolve, reject) {
-            wifi.execDisable(function(err, stdout, stderr) {
+            execDisable(function(err, stdout, stderr) {
                 if (err) {
                     wifi.error("There was an unknown error disabling the interface" + err);
                     reject(err);
@@ -350,7 +207,7 @@ var wifi = (function() {
     function join(network, password) {
         if (network.encryption_wep) {
             return new Promise(function(resolve, reject) {
-                wifi.execConnectWEP(network, password, function(err, stdout, stderr) {
+                execConnectWEP(network, password, function(err, stdout, stderr) {
                     if (err || stderr) {
                         wifi.error(err);
                         wifi.error(stderr);
@@ -362,7 +219,7 @@ var wifi = (function() {
             });
         } else if (network.encryption_wpa || network.encryption_wpa2) {
             return new Promise(function(resolve, reject) {
-                wifi.execConnectWPA(network, password, function(err, stdout, stderr) {
+                execConnectWPA(network, password, function(err, stdout, stderr) {
                     if (err || stderr) {
                         wifi.error(err);
                         wifi.error(stderr);
@@ -374,7 +231,7 @@ var wifi = (function() {
             });
         } else {
             return new Promise(function(resolve, reject) {
-                wifi.execConnectOpen(network, function(err, stdout, stderr) {
+                execConnectOpen(network, function(err, stdout, stderr) {
                     if (err || stderr) {
                         wifi.error(err);
                         wifi.error(stderr);
@@ -393,7 +250,7 @@ var wifi = (function() {
     ///
     function leave(network) {
         return new Promise(function(resolve, reject) {
-            wifi.execLeave(network, function(err, stdout, stderr) {
+            execLeave(network, function(err, stdout, stderr) {
                 if (err) {
                     wifi.error("There was an error when we tried to disconnect from the network");
                     reject(err);
@@ -402,6 +259,130 @@ var wifi = (function() {
                 }
             });
         });
+    }
+
+
+    function execDHCP(callback) {
+        var command = 'sudo dhcpcd {interface}';
+        var args = {
+            'interface': options.interfaces[options.interfaceIndex]
+        };
+        command = command.format(args);
+        wifi.onCommand(command);
+        exec(command, callback);
+    }
+
+
+    function execDHCPDisable(callback) {
+        var command = 'sudo dhcpcd {interface} -k';
+        var args = {
+            'interface': options.interfaces[options.interfaceIndex]
+        };
+        command = command.format(args);
+        wifi.onCommand(command);
+        exec(command, callback);
+    }
+
+
+    function execEnable(callback) {
+        var command = 'sudo ifconfig {interface} up';
+        var args = {
+            'interface': options.interfaces[options.interfaceIndex]
+        };
+        command = command.format(args);
+        wifi.onCommand(command);
+        exec(command, callback);
+    }
+
+
+    function execDisable(callback) {
+        var command = 'sudo ifconfig {interface} down';
+        var args = {
+            'interface': options.interfaces[options.interfaceIndex]
+        };
+        command.format(args);
+        wifi.onCommand(command);
+        exec(command, callback);
+    }
+
+
+    /// 
+    /// Connect to a WEP encrypted network
+    ///
+    function execConnectWEP(network, password, callback) {
+        var command = 'sudo iwconfig {interface} essid "{essid}" key {password}';
+        var args = {
+            'interface': options.interfaces[options.interfaceIndex],
+            'essid': network.essid,
+            'password': password
+        };
+        command.format(args);
+        wifi.onCommand(command);
+        exec(command, callback);
+    }
+
+
+    ///
+    /// Connect to a WPA2 or WPA enabled network, while preserving the network id and password.
+    ///
+    function execConnectWPA(network, password, callback) {
+        var command = 'sudo wpa_passphrase "{essid}" {password} > wpa-temp.conf && sudo wpa_supplicant -D wext -i {interface} -c wpa-temp.conf && rm wpa-temp.conf';
+        var args = {
+            'interface': options.interfaces[options.interfaceIndex],
+            'essid': network.essid,
+            'password': password
+        };
+        command.format(args);
+        wifi.onCommand(command);
+        exec(command, callback);
+    }
+
+
+    ///
+    /// Connect to the given network password.
+    ///
+    function execConnectOpen(network, callback) {
+        var command = 'sudo iwconfig {interface} essid "{essid}"';
+        var args = {
+            'interface': options.interfaces[options.interfaceIndex],
+            'essid': network.essid
+        };
+        command.format(args);
+        wifi.onCommand(command);
+        exec(command, callback);
+    }
+
+
+    function execLeave(network, callback) {
+        var command = 'sudo iwconfig {interface} essid ""';
+        var args = {
+            'interface': options.interfaces[options.interfaceIndex]
+        };
+        command.format(args);
+        wifi.onCommand(command);
+        exec(command, callback);
+    }
+
+
+    function execScan(callback) {
+        var command = 'sudo iwlist {interface} scan';
+        var args = {
+            'interface': options.interfaces[options.interfaceIndex]
+        };
+        command = command.format(args);
+        wifi.onCommand(command);
+        exec(command, callback);       
+    }
+
+
+    function execTrackConnection(callback) {
+        var command = 'sudo iwconfig {interface}';
+        var args = {
+            'interface': options.interfaces[options.interfaceIndex]
+        };
+        command = command.format(args);
+        wifi.onCommand(command);
+        exec(command, callback);       
     }
 
 
@@ -464,7 +445,7 @@ var wifi = (function() {
 
         // TODO: Deprecated, will be removed in 0.5.0 release
         if (networkCount === 0) {
-            this.onEmpty();
+            wifi.onEmpty();
         }
 
         return networks;
@@ -475,9 +456,9 @@ var wifi = (function() {
     /// Scan the current network list, and then check the list to see if anything has changed.
     ///
     function _executeScan() {
-        wifi.execScan(function(err, stdout, stderr) {
+        execScan(function(err, stdout, stderr) {
             if (err) {
-                if (self.killing) {
+                if (killing) {
                     // Of course we got an error the main app is being killed, taking iwlist down with it
                     return;
                 }
@@ -493,11 +474,11 @@ var wifi = (function() {
                 }
             } else if (stdout) {
                 var content = stdout.toString();
-                var networks = self._parseScan(content);
+                var newNetworks = _parseScan(content);
 
-                _.each(networks, function(network) {
-                    if (wifi.networks[network.address]) {
-                        var oldNetwork = wifi.networks[network.address];
+                _.each(newNetworks, function(network) {
+                    if (networks[network.address]) {
+                        var oldNetwork = networks[network.address];
 
                         if (oldNetwork.ssid != network.ssid || oldNetwork.encryption_any != network.encryption_any) {
                             wifi.onChange(network);
@@ -505,23 +486,23 @@ var wifi = (function() {
                             wifi.onSignal(network);
                         }
 
-                        wifi.networks[network.address] = network;
+                        networks[network.address] = network;
                     } else {
-                        wifi.networks[network.address] = network;
+                        networks[network.address] = network;
                         wifi.onAppear(network);
                     }
                 });
 
                 // For each network, increment last_tick, if it equals the threshold, send an event
-                for (var address in this.networks) {
-                    if (!wifi.networks.hasOwnProperty(address)) {
+                for (var address in networks) {
+                    if (!networks.hasOwnProperty(address)) {
                         break;
                     }
 
-                    var this_network = wifi.networks[address];
+                    var this_network = networks[address];
                     this_network.last_tick++;
 
-                    if (this_network.last_tick == wifi.config.vanishThreshold+1) {
+                    if (this_network.last_tick == options.vanishThreshold+1) {
                         wifi.onVanish(this_network);
                     }
                 }
@@ -534,10 +515,13 @@ var wifi = (function() {
     /// Checks to see if we are connected to a wireless network and have an IP address.
     ///
     function _executeTrackConnection() {
-        wifi.execTrackConnection(function(err, stdout, stderr) {
+        console.log("Executing connection tracking");
+        execTrackConnection(function(err, stdout, stderr) {
             if (err) {
                 wifi.error("Error getting wireless devices information");
-            } else {
+            } else if (stderr) {
+                wifi.error(stderr);
+            } else if (stdout) {
                 var content = stdout.toString();
                 var lines = content.split(/\r\n|\r|\n/);
                 var foundOutWereConnected = false;
@@ -554,12 +538,12 @@ var wifi = (function() {
                 });
 
                 // guess we're not connected after all
-                if (!foundOutWereConnected && wifi.connected) {
-                    wifi.connected = false;
+                if (!foundOutWereConnected && connected) {
+                    connected = false;
                     wifi.onLeave();
-                } else if (foundOutWereConnected && !wifi.connected) {
-                    wifi.connected = true;
-                    var network = wifi.networks[networkAddress];
+                } else if (foundOutWereConnected && !connected) {
+                    connected = true;
+                    var network = networks[networkAddress];
 
                     if (network) {
                         wifi.onJoin(network);
@@ -582,6 +566,14 @@ var wifi = (function() {
     /// Fixed functions.  Callable but should not be replaced.
     ///
     wifi.start = start;
+    wifi.list = list;
+    wifi.stop = stop;
+    wifi.dhcp = dhcp;
+    wifi.dhcpStop = dhcpStop;
+    wifi.enable = enable;
+    wifi.disable = disable;
+    wifi.join = join;
+    wifi.leave = leave;
 
     ///
     /// Listener functions

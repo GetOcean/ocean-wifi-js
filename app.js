@@ -2,9 +2,10 @@
 var wifi = require('./wifi/index.js').wifi;
 
 var config = {
-    iface: 'wlan0',
+    interfaces: ['wlan0'],
+    interfaceIndex: 0,
     updateFrequency: 10,
-    connectionSpyFrequency: 2,
+    connectionTestFrequency: 2,
     vanishThreshold: 2
 };
 
@@ -20,6 +21,7 @@ wifi.start(config).then(
     },
     function(err) {
         console.log(err);
+        console.log(err.stack);
     }
 );
 
