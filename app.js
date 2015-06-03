@@ -17,6 +17,9 @@ wifi.start(config).then(
                 debugNetworkInfo("list", n);
             }
         }, 2000);
+    },
+    function(err) {
+        console.log(err);
     }
 );
 
