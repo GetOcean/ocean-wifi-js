@@ -1,5 +1,5 @@
 'use strict';
-var Wifi = require('wifi');
+var wifi = require('./wifi');
 var fs = require('fs');
 
 var config = {

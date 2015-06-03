@@ -116,8 +116,8 @@ var wifi = (function() {
             clearInterval(this.connectTimer);
             wifi.onStop();
             resolve();
-        }
-    };
+        });
+    }
 
 
     ///
@@ -139,7 +139,7 @@ var wifi = (function() {
     ///
     function list = function() {
         return this.networks;
-    };
+    }
 
 
     function execDHCP(callback) {
