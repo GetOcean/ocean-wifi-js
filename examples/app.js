@@ -12,7 +12,7 @@ var config = {
 wifi.start(config).then(        
     function(success) {
         setInterval(function() {
-            var list = wireless.list();
+            var list = wifi.list();
             for (var k in list) {
                 var n = list[k];
                 debugNetworkInfo("list", n);
