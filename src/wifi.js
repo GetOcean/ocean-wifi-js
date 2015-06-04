@@ -67,7 +67,6 @@ var wifi = (function() {
     function start(opts) {
         var promise = new Promise(function(resolve, reject) {
             options = _.extend({}, opts, defaultOptions);
-            console.log (options);
 
             _executeScan();
             _executeTrackConnection();
@@ -183,7 +182,7 @@ var wifi = (function() {
             execEnable(function(err, stdout, stderr) {
                 if (err) {
                     if (err.message.indexOf("No such device")) {
-                        wifi.error("The interface " + options.iface + " does not exist.");
+                        wifi.error("The interface does not exist.");
                         reject(err);
                     } else {
                         wifi.error("There was an unknown error enabling the interface" + err);
@@ -277,6 +276,28 @@ var wifi = (function() {
                     resolve();
                 }
             });
+        });
+    }
+
+
+    function printDebugNetworkInfo(network) {
+        var encryption_type = 'NONE';
+        if (network.encryption_wep) {
+            encryption_type = 'WEP';
+        } else if (network.encryption_wpa && network.encryption_wpa2) {
+            encryption_type = 'WPA&WPA2';
+        } else if (network.encryption_wpa) {
+            encryption_type = 'WPA';
+        } else if (network.encryption_wpa2) {
+            encryption_type = 'WPA2';
+        }
+
+        wifi.log("{ssid} [{address}] {quality}% {strength} dBm {encryption_type}", {
+            'ssid': network.ssid || '<HIDDEN>',
+            'address': network.address,
+            'quality': Math.floor(network.quality / 70 * 100),
+            'strength': network.strength,
+            'encryption_type': encryption_type
         });
     }
 
@@ -406,7 +427,7 @@ var wifi = (function() {
 
 
     /// 
-    /// Parses the output from `iwlist IFACE scan` and returns a pretty formattted object
+    /// Parses the output from `iwlist {interface scan` and returns a pretty formattted object
     ///
     function _parseScan(scanResults) {
         var lines = scanResults.split(/\r\n|\r|\n/);
@@ -534,7 +555,6 @@ var wifi = (function() {
     /// Checks to see if we are connected to a wireless network and have an IP address.
     ///
     function _executeTrackConnection() {
-        console.log("Executing connection tracking");
         execTrackConnection(function(err, stdout, stderr) {
             if (err) {
                 wifi.error("Error getting wireless devices information");
