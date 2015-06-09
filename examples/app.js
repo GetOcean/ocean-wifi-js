@@ -74,19 +74,6 @@ function connect(networkId, networkSSID, networkPassword) {
 }
 
 
-// Bluetooth characteristics:
-//
-// Getting data:
-// * Streaming: List of available networks
-// * WriteRead: Current network
-// * Notify: new network appeared
-// * Notify: network disappeared
-// * Notify: IP address was assigned
-//
-// Actions:
-// * WriteRead: 
-
-
 wifi.onAppear = function(network) {
     debugNetworkInfo('appear', network);
 };
