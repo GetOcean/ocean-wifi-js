@@ -222,60 +222,66 @@ var wifi = (function() {
     ///
     /// Attempts to connect to the specified network
     ///
-    function join(network, password) {
-        if (network.encryption_wep) {
-            return new Promise(function(resolve, reject) {
-                execConnectWEP(network, password, function(err, stdout, stderr) {
-                    if (err || stderr) {
-                        wifi.error(err);
-                        wifi.error(stderr);
-                        reject(err || stderr);
-                    } else {
-                        resolve();
-                    }
-                });
-            });
-        } else if (network.encryption_wpa || network.encryption_wpa2) {
-            return new Promise(function(resolve, reject) {
-                execConnectWPA(network, password, function(err, stdout, stderr) {
-                    if (err || stderr) {
-                        wifi.error(err);
-                        wifi.error(stderr);
-                        reject(err || stderr);
-                    } else {
-                        resolve();
-                    }
-                });
-            });
-        } else {
-            return new Promise(function(resolve, reject) {
-                execConnectOpen(network, function(err, stdout, stderr) {
-                    if (err || stderr) {
-                        wifi.error(err);
-                        wifi.error(stderr);
-                        reject(err || stderr);
-                    } else {
-                        resolve();
-                    }
-                });
-            });
-        }
+    function join(address, password) {
+        return new Promise(function(resolve, reject) {
+            var network = networks[address];
+            if (network) {
+                if (network.encryption_wep) {
+                    execConnectWEP(network, password, function(err, stdout, stderr) {
+                        if (err || stderr) {
+                            wifi.error(err);
+                            wifi.error(stderr);
+                            reject(err || stderr);
+                        } else {
+                            resolve();
+                        }
+                    });
+                } else if (network.encryption_wpa || network.encryption_wpa2) {
+                    execConnectWPA(network, password, function(err, stdout, stderr) {
+                        if (err || stderr) {
+                            wifi.error(err);
+                            wifi.error(stderr);
+                            reject(err || stderr);
+                        } else {
+                            resolve();
+                        }
+                    });
+                } else {
+                    execConnectOpen(network, function(err, stdout, stderr) {
+                        if (err || stderr) {
+                            wifi.error(err);
+                            wifi.error(stderr);
+                            reject(err || stderr);
+                        } else {
+                            resolve();
+                        }
+                    });
+                }
+            } else {
+                reject("Could not find the network with address " + address);
+            }
+        });
     }
 
 
     /// 
     /// Attempts to disconnect from the specified network
     ///
-    function leave(network) {
+    function leave(address) {
         return new Promise(function(resolve, reject) {
-            execLeave(network, function(err, stdout, stderr) {
-                if (err) {
-                    wifi.error("There was an error when we tried to disconnect from the network");
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
+            var network = networks[address];
+            if (network) {
+                execLeave(network, function(err, stdout, stderr) {
+                    if (err) {
+                        wifi.error("There was an error when we tried to disconnect from the network");
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                });
+            } else {
+                reject("Could not find the network with address " + address);
+            }
         });
     }
 
