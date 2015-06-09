@@ -56,7 +56,7 @@ var wifi = (function() {
             vanishThreshold : 2
         },
 
-        config = {},
+        options = {},
 
         commands = {},
 
@@ -595,15 +595,16 @@ var wifi = (function() {
     };
 
 
+    function DefaultListenerFunction(event) {
+        wifi.log(event);
+    }
+
+
     ///
     /// Public functions
     ///
     wifi.log = defaultLog;
     wifi.error = defaultLog;
-
-    ///
-    /// Fixed functions.  Callable but should not be replaced.
-    ///
     wifi.start = start;
     wifi.list = list;
     wifi.stop = stop;
@@ -617,16 +618,18 @@ var wifi = (function() {
     ///
     /// Listener functions
     ///
-    wifi.onAppear = function(event) { wifi.log(event); };
-    wifi.onChange = function(event) { wifi.log(event); };
-    wifi.onSignal = function(event) { wifi.log(event); };
-    wifi.onEmpty = function(event) { wifi.log(event); };
-    wifi.onCommand = function(event) { wifi.log(event); };
-    wifi.onJoin = function(event) { wifi.log(event); };
-    wifi.onFormer = function(event) { wifi.log(event); };
-    wifi.onDHCP = function(event) { wifi.log(event); };
-    wifi.onStop = function(event) { wifi.log(event); };
-    wifi.onVanish = function(event) { wifi.log(event); };
+    wifi.onAppear = DefaultListenerFunction;
+    wifi.onChange = DefaultListenerFunction;
+    wifi.onSignal = DefaultListenerFunction;
+    wifi.onEmpty = DefaultListenerFunction;
+    wifi.onCommand = DefaultListenerFunction;
+    wifi.onJoin = DefaultListenerFunction;
+    wifi.onFormer = DefaultListenerFunction;
+    wifi.onDHCP = DefaultListenerFunction;
+    wifi.onStop = DefaultListenerFunction;
+    wifi.onVanish = DefaultListenerFunction;
+
+    wifi.DefaultListenerFunction = DefaultListenerFunction;
     
     return wifi;
 } ());
