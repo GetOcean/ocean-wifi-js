@@ -54,9 +54,9 @@ var wifi = (function() {
         defaultOptions = {
             interfaces : ["wlan0"],
             interfaceIndex : 0,
-            updateFrequency : 5,
-            connectionTestFrequency : 5,
-            vanishThreshold : 2
+            updateFrequency : 10,
+            connectionTestFrequency : 10,
+            vanishThreshold : 10
         },
 
         options = {},
@@ -367,15 +367,20 @@ var wifi = (function() {
     /// Connect to a WPA2 or WPA enabled network, while preserving the network id and password.
     ///
     function execConnectWPA(network, password, callback) {
-        var command = 'sudo wpa_passphrase "{essid}" "{password}" > wpa-temp.conf && sudo wpa_supplicant -D wext -i {interface} -c wpa-temp.conf && rm wpa-temp.conf && systemctl restart networking';
+        var wpa_command = 'sudo wpa_passphrase "{essid}" "{password}" >> /etc/wpa_supplicant/wpa_supplicant.conf'
+        var reset_command = 'sudo ifdown --force {interface} && sudo ifup {interface}';
         var args = {
             'interface': options.interfaces[options.interfaceIndex],
             'essid': network.essid,
             'password': password
         };
-        command = command.format(args);
-        wifi.onCommand(command);
-        exec(command, callback);
+        wpa_command = wpa_command.format(args);
+        reset_command = reset_command.format(args);
+
+        wifi.onCommand(reset_command);
+        exec(wpa_command, function(err, stdout, stderr) {
+            exec(reset_command, callback);
+        });
     }
 
 
@@ -444,7 +449,9 @@ var wifi = (function() {
 
 
     ///
-    /// Parses the output from `iwlist {interface scan` and returns a pretty formattted object
+    /// Parses the output from `iwlist {interface scan` and returns a pretty formattted object.
+    ///
+    /// This parsing really sucks.
     ///
     function _parseScan(scanResults) {
         var lines = scanResults.split(/\r\n|\r|\n/);
@@ -460,7 +467,7 @@ var wifi = (function() {
                 networkCount++;
                 if (!_.isEmpty(network)) {
                     if (network.essid.indexOf('\\x00\\x00\\x00\\x00') > -1) {
-                        console.log("Skipping network")
+                        //console.log("Skipping network")
                     } else {
                         networks.push(network);
                     }
@@ -478,20 +485,44 @@ var wifi = (function() {
 
                 network.address = line.match(/([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}/)[0];
             } else if (line.indexOf('Channel') === 0) {
-                network.channel = line.match(/Channel:([0-9]{1,2})/)[1];
+                var channel = line.match(/Channel:([0-9]{1,2})/);
+
+                if (channel && channel.length >= 2) {
+                    network.channel = channel[1];
+                }
             } else if (line.indexOf('Quality') === 0) {
-                network.quality = line.match(/Quality:([0-9]{1}\/[0-9]{1})/)[1];
-                network.strength = line.match(/Signal level:(-?[0-9]{1,3}) dBm/)[1];
+                var quality = line.match(/Quality:([0-9]{1}\/[0-9]{1})/);
+                var strength = line.match(/Signal level:(-?[0-9]{1,3}) dBm/);
+
+                if (quality && quality.length >= 2) {
+                    network.quality = quality[1];
+                }
+
+                if (strength && strength.length >= 2) {
+                    network.strength = strength[1];
+                }
             } else if (line.indexOf('Encryption key') === 0) {
-                var enc = line.match(/Encryption key:(on|off)/)[1];
-                if (enc === 'on') {
-                    network.encryption_any = true;
-                    network.encryption_wep = true;
+                var enc = line.match(/Encryption key:(on|off)/);
+
+                if (enc && enc.length >= 2) {
+                    enc = enc[1];
+                    if (enc === 'on') {
+                        network.encryption_any = true;
+                        network.encryption_wep = true;
+                    }
                 }
             } else if (line.indexOf('ESSID') === 0) {
-                network.essid = line.match(/ESSID:"(.*)"/)[1];
+                var essid = line.match(/ESSID:"(.*)"/);
+
+                if (essid && essid.length >= 2) {
+                    network.essid = essid[1];
+                }
             } else if (line.indexOf('Mode') === 0) {
-                network.mode = line.match(/Mode:(.*)/)[1];
+                var mode = line.match(/Mode:(.*)/);
+
+                if (mode && mode.length >= 2) {
+                    network.mode = mode[1];
+                }
             } else if (line.indexOf('IE: IEEE 802.11i/WPA2 Version 1') === 0) {
                 network.encryption_wep = false;
                 network.encryption_wpa2 = true;
@@ -503,7 +534,7 @@ var wifi = (function() {
 
         if (!_.isEmpty(network)) {
             if (network.essid.indexOf('\\x00\\x00\\x00\\x00') > -1) {
-                console.log("Skipping network")
+                //console.log("Skipping network")
             } else {
                 networks.push(network);
             }
