@@ -33,15 +33,18 @@ var wifi = (function() {
 
     var wifi = {},
         killing = true,
-        
+
         // Scanner timer reference
         scanTimer = null,
 
         // Connection timer reference
         connectTimer = null,
-        
+
         // True if connected to a network
         connected = true,
+
+        // Current network
+        connectedNetwork = null,
 
         // @interfaces: A list of interface to listen on.
         // @interfaceIndex: starting interface index
@@ -51,8 +54,8 @@ var wifi = (function() {
         defaultOptions = {
             interfaces : ["wlan0"],
             interfaceIndex : 0,
-            updateFrequency : 10,
-            connectionTestFrequency : 2,
+            updateFrequency : 5,
+            connectionTestFrequency : 5,
             vanishThreshold : 2
         },
 
@@ -74,7 +77,7 @@ var wifi = (function() {
             scanTimer = setInterval(function() {
                 _executeScan();
             }, options.updateFrequency * 1000);
-                
+
             connectTimer = setInterval(function() {
                 _executeTrackConnection();
             }, options.connectionTestFrequency * 1000);
@@ -86,7 +89,7 @@ var wifi = (function() {
     }
 
 
-    /// 
+    ///
     /// Stop listening
     ///
     function stop() {
@@ -109,16 +112,24 @@ var wifi = (function() {
         if (typeof console.log != 'function') {
             alert('No console.');
         } else {
-            console.log(message);
+            //console.log(message);
         }
     }
 
 
-    /// 
+    ///
     /// List of networks as of the last scan.
     ///
     function list() {
         return networks;
+    }
+
+
+    ///
+    /// Currently connected network
+    ///
+    function currentNetwork() {
+        return connectedNetwork;
     }
 
 
@@ -226,8 +237,8 @@ var wifi = (function() {
         return new Promise(function(resolve, reject) {
             var network = networks[address];
             if (network) {
-                if (network.encryption_wep) {
-                    execConnectWEP(network, password, function(err, stdout, stderr) {
+                if (network.encryption_wpa || network.encryption_wpa2) {
+                    execConnectWPA(network, password, function(err, stdout, stderr) {
                         if (err || stderr) {
                             wifi.error(err);
                             wifi.error(stderr);
@@ -236,8 +247,8 @@ var wifi = (function() {
                             resolve();
                         }
                     });
-                } else if (network.encryption_wpa || network.encryption_wpa2) {
-                    execConnectWPA(network, password, function(err, stdout, stderr) {
+                } else if (network.encryption_wep) {
+                    execConnectWEP(network, password, function(err, stdout, stderr) {
                         if (err || stderr) {
                             wifi.error(err);
                             wifi.error(stderr);
@@ -264,7 +275,7 @@ var wifi = (function() {
     }
 
 
-    /// 
+    ///
     /// Attempts to disconnect from the specified network
     ///
     function leave(address) {
@@ -298,8 +309,8 @@ var wifi = (function() {
             encryption_type = 'WPA2';
         }
 
-        wifi.log("{ssid} [{address}] {quality}% {strength} dBm {encryption_type}", {
-            'ssid': network.ssid || '<HIDDEN>',
+        wifi.log("{essid} [{address}] {quality}% {strength} dBm {encryption_type}", {
+            'essid': network.essid || '<HIDDEN>',
             'address': network.address,
             'quality': Math.floor(network.quality / 70 * 100),
             'strength': network.strength,
@@ -346,23 +357,7 @@ var wifi = (function() {
         var args = {
             'interface': options.interfaces[options.interfaceIndex]
         };
-        command.format(args);
-        wifi.onCommand(command);
-        exec(command, callback);
-    }
-
-
-    /// 
-    /// Connect to a WEP encrypted network
-    ///
-    function execConnectWEP(network, password, callback) {
-        var command = 'sudo iwconfig {interface} essid "{essid}" key {password}';
-        var args = {
-            'interface': options.interfaces[options.interfaceIndex],
-            'essid': network.essid,
-            'password': password
-        };
-        command.format(args);
+        command = command.format(args);
         wifi.onCommand(command);
         exec(command, callback);
     }
@@ -372,13 +367,29 @@ var wifi = (function() {
     /// Connect to a WPA2 or WPA enabled network, while preserving the network id and password.
     ///
     function execConnectWPA(network, password, callback) {
-        var command = 'sudo wpa_passphrase "{essid}" {password} > wpa-temp.conf && sudo wpa_supplicant -D wext -i {interface} -c wpa-temp.conf && rm wpa-temp.conf';
+        var command = 'sudo wpa_passphrase "{essid}" "{password}" > wpa-temp.conf && sudo wpa_supplicant -D wext -i {interface} -c wpa-temp.conf && rm wpa-temp.conf && systemctl restart networking';
         var args = {
             'interface': options.interfaces[options.interfaceIndex],
             'essid': network.essid,
             'password': password
         };
-        command.format(args);
+        command = command.format(args);
+        wifi.onCommand(command);
+        exec(command, callback);
+    }
+
+
+    ///
+    /// Connect to a WEP encrypted network
+    ///
+    function execConnectWEP(network, password, callback) {
+        var command = 'sudo iwconfig {interface} essid "{essid}" key {password}';
+        var args = {
+            'interface': options.interfaces[options.interfaceIndex],
+            'essid': network.essid,
+            'password': password
+        };
+        command = command.format(args);
         wifi.onCommand(command);
         exec(command, callback);
     }
@@ -393,7 +404,7 @@ var wifi = (function() {
             'interface': options.interfaces[options.interfaceIndex],
             'essid': network.essid
         };
-        command.format(args);
+        command = command.format(args);
         wifi.onCommand(command);
         exec(command, callback);
     }
@@ -404,7 +415,7 @@ var wifi = (function() {
         var args = {
             'interface': options.interfaces[options.interfaceIndex]
         };
-        command.format(args);
+        command = command.format(args);
         wifi.onCommand(command);
         exec(command, callback);
     }
@@ -415,9 +426,9 @@ var wifi = (function() {
         var args = {
             'interface': options.interfaces[options.interfaceIndex]
         };
-        command = command.format(args);
+        command = command = command.format(args);
         wifi.onCommand(command);
-        exec(command, callback);       
+        exec(command, callback);
     }
 
 
@@ -428,11 +439,11 @@ var wifi = (function() {
         };
         command = command.format(args);
         wifi.onCommand(command);
-        exec(command, callback);       
+        exec(command, callback);
     }
 
 
-    /// 
+    ///
     /// Parses the output from `iwlist {interface scan` and returns a pretty formattted object
     ///
     function _parseScan(scanResults) {
@@ -448,7 +459,12 @@ var wifi = (function() {
             if (line.indexOf('Cell') === 0) {
                 networkCount++;
                 if (!_.isEmpty(network)) {
-                    networks.push(network);
+                    if (network.essid.indexOf('\\x00\\x00\\x00\\x00') > -1) {
+                        console.log("Skipping network")
+                    } else {
+                        networks.push(network);
+                    }
+                    //networks.push(network);
                 }
 
                 network = {
@@ -464,8 +480,8 @@ var wifi = (function() {
             } else if (line.indexOf('Channel') === 0) {
                 network.channel = line.match(/Channel:([0-9]{1,2})/)[1];
             } else if (line.indexOf('Quality') === 0) {
-                network.quality = line.match(/Quality=([0-9]{1,2})\/70/)[1];
-                network.strength = line.match(/Signal level=(-?[0-9]{1,3}) dBm/)[1];
+                network.quality = line.match(/Quality:([0-9]{1}\/[0-9]{1})/)[1];
+                network.strength = line.match(/Signal level:(-?[0-9]{1,3}) dBm/)[1];
             } else if (line.indexOf('Encryption key') === 0) {
                 var enc = line.match(/Encryption key:(on|off)/)[1];
                 if (enc === 'on') {
@@ -473,7 +489,7 @@ var wifi = (function() {
                     network.encryption_wep = true;
                 }
             } else if (line.indexOf('ESSID') === 0) {
-                network.ssid = line.match(/ESSID:"(.*)"/)[1];
+                network.essid = line.match(/ESSID:"(.*)"/)[1];
             } else if (line.indexOf('Mode') === 0) {
                 network.mode = line.match(/Mode:(.*)/)[1];
             } else if (line.indexOf('IE: IEEE 802.11i/WPA2 Version 1') === 0) {
@@ -486,7 +502,11 @@ var wifi = (function() {
         });
 
         if (!_.isEmpty(network)) {
-            networks.push(network);
+            if (network.essid.indexOf('\\x00\\x00\\x00\\x00') > -1) {
+                console.log("Skipping network")
+            } else {
+                networks.push(network);
+            }
         }
 
         // TODO: Deprecated, will be removed in 0.5.0 release
@@ -498,7 +518,7 @@ var wifi = (function() {
     };
 
 
-    /// 
+    ///
     /// Scan the current network list, and then check the list to see if anything has changed.
     ///
     function _executeScan() {
@@ -526,7 +546,7 @@ var wifi = (function() {
                     if (networks[network.address]) {
                         var oldNetwork = networks[network.address];
 
-                        if (oldNetwork.ssid != network.ssid || oldNetwork.encryption_any != network.encryption_any) {
+                        if (oldNetwork.essid != network.essid || oldNetwork.encryption_any != network.encryption_any) {
                             wifi.onChange(network);
                         } else if (oldNetwork.strength != network.strength || oldNetwork.quality != network.quality) {
                             wifi.onSignal(network);
@@ -585,9 +605,11 @@ var wifi = (function() {
                 // guess we're not connected after all
                 if (!foundOutWereConnected && connected) {
                     connected = false;
+                    connectedNetwork = null;
                     wifi.onLeave();
                 } else if (foundOutWereConnected && !connected) {
                     connected = true;
+                    connectedNetwork = networkAddress;
                     var network = networks[networkAddress];
 
                     if (network) {
@@ -595,6 +617,8 @@ var wifi = (function() {
                     } else {
                         wifi.onFormer(networkAddress);
                     }
+                } else if (foundOutWereConnected && connected) {
+                    connectedNetwork = networkAddress;
                 }
             }
         });
@@ -613,6 +637,7 @@ var wifi = (function() {
     wifi.error = defaultLog;
     wifi.start = start;
     wifi.list = list;
+    wifi.currentNetwork = currentNetwork;
     wifi.stop = stop;
     wifi.dhcp = dhcp;
     wifi.dhcpStop = dhcpStop;
@@ -630,13 +655,14 @@ var wifi = (function() {
     wifi.onEmpty = DefaultListenerFunction;
     wifi.onCommand = DefaultListenerFunction;
     wifi.onJoin = DefaultListenerFunction;
+    wifi.onLeave = DefaultListenerFunction;
     wifi.onFormer = DefaultListenerFunction;
     wifi.onDHCP = DefaultListenerFunction;
     wifi.onStop = DefaultListenerFunction;
     wifi.onVanish = DefaultListenerFunction;
 
     wifi.DefaultListenerFunction = DefaultListenerFunction;
-    
+
     return wifi;
 } ());
 
