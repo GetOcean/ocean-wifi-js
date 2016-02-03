@@ -186,6 +186,24 @@ var wifi = (function() {
 
 
     ///
+    /// Gets the IP address for the current interface.
+    ///
+    function getIP() {
+        return new Promise(function(resolve, reject) {
+            execGetIP(function(err, stdout, stderr) {
+                if (err) {
+                    wifi.error("There was an error retr dhcp" + err);
+                    reject();
+                } else {
+                    var ipAddress = stdout.toString();
+                    resolve(ipAddress);
+                }
+            });
+        });
+    }
+
+
+    ///
     /// Enables the interface (ifconfig UP)
     ///
     function enable() {
@@ -336,6 +354,22 @@ var wifi = (function() {
             'interface': options.interfaces[options.interfaceIndex]
         };
         command = command.format(args);
+        wifi.onCommand(command);
+        exec(command, callback);
+    }
+
+
+    function execGetIP(callback) {
+        var USE_IFCONFIG_UP = false;
+        var command = 'hostname -I';
+        if (USE_IFCONFIG_UP == true) {
+            var command = 'ifconfig wlan0 | grep inet | awk \'\{print \$2\}\' | sed \'s\/addr:\/\/\'';
+            var args = {
+                'interface' : options.interfaces[options.interfaceIndex]
+            };
+            command = command.format(args);
+        }
+
         wifi.onCommand(command);
         exec(command, callback);
     }
@@ -672,6 +706,7 @@ var wifi = (function() {
     wifi.stop = stop;
     wifi.dhcp = dhcp;
     wifi.dhcpStop = dhcpStop;
+    wifi.getIP = getIP;
     wifi.enable = enable;
     wifi.disable = disable;
     wifi.join = join;
