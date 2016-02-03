@@ -196,11 +196,12 @@ var wifi = (function() {
                     reject();
                 } else {
                     var ipAddress = stdout.toString();
-                    resolve(ipAddress);
+                    var ips = ipAddress.split(" ");
+                    resolve(ips);
                 }
             });
         });
-    }
+    };
 
 
     ///
