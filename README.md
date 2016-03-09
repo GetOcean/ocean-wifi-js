@@ -1,5 +1,8 @@
-# blueocean-wifi-js
-Wifi manipulation utility for BlueOcean devices
+# ocean-wifi-js
+
+Wifi manipulation utility for Ocean devices.
+
+This is a derivative of tlhunter's excellent [node wireless library]{https://github.com/tlhunter/node-wireless}.
 
 Requires grunt and grunt-cli.
 
