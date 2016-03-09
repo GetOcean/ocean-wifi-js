@@ -196,8 +196,12 @@ var wifi = (function() {
                     reject();
                 } else {
                     var ipAddress = stdout.toString();
-                    var ips = ipAddress.split(" ");
-                    resolve(ips);
+                    if (ipAddress.length > 0) {
+                        var ips = ipAddress.split(" ");
+                        resolve(ips);
+                    } else {
+                        resolve();
+                    }
                 }
             });
         });
@@ -364,7 +368,7 @@ var wifi = (function() {
         var USE_IFCONFIG_UP = false;
         var command = 'hostname -I';
         if (USE_IFCONFIG_UP == true) {
-            var command = 'ifconfig wlan0 | grep inet | awk \'\{print \$2\}\' | sed \'s\/addr:\/\/\'';
+            command = 'ifconfig wlan0 | grep inet | awk \'\{print \$2\}\' | sed \'s\/addr:\/\/\'';
             var args = {
                 'interface' : options.interfaces[options.interfaceIndex]
             };
@@ -466,7 +470,7 @@ var wifi = (function() {
         var args = {
             'interface': options.interfaces[options.interfaceIndex]
         };
-        command = command = command.format(args);
+        command = command.format(args);
         wifi.onCommand(command);
         exec(command, callback);
     }
