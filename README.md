@@ -2,7 +2,7 @@
 
 Wifi manipulation utility for Ocean devices that run Debian Jessie.
 
-This is a derivative of tlhunter's excellent node-wireless library: https://github.com/tlhunter/node-wireless
+This is a derivative of tlhunter's excellent node-wireless library: https://github.com/tlhunter/node-wireless.
 
 Requires grunt and grunt-cli.
 
@@ -33,3 +33,4 @@ Requires grunt and grunt-cli.
             console.log("Boo!")
         }
     );
+
